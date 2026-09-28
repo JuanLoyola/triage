@@ -1,0 +1,15 @@
+# Backend
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+*.egg-info/
+
+# Secrets
+.env
+.env.local
+*.key
+
+# Node (frontend)
+node_modules/
+.next/
