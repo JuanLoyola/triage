@@ -9,7 +9,21 @@ import { TriageForm } from "@/components/triage-form";
 import { sessionHeaders } from "@/lib/session";
 import type { RunResult } from "@/lib/types";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000";
+/**
+ * Backend URL.
+ *
+ * Read at runtime with a fallback, because `process.env.NEXT_PUBLIC_*` is
+ * inlined at build time. If it is not set on the deployment the literal
+ * `undefined` is what gets compiled in, and the dashboard silently points at
+ * its own origin. Surfacing the configured URL in the error banner makes that
+ * misconfiguration obvious instead of mysterious.
+ */
+const API_URL =
+  process.env.NEXT_PUBLIC_API_URL && process.env.NEXT_PUBLIC_API_URL !== "undefined"
+    ? process.env.NEXT_PUBLIC_API_URL
+    : "http://127.0.0.1:8000";
+
+const isProduction = process.env.NODE_ENV === "production";
 
 interface Quota {
   limit: number;
@@ -208,12 +222,14 @@ export function Dashboard() {
         >
           <p className="flex items-center gap-1.5 font-medium">
             <ServerCrash aria-hidden="true" className="h-4 w-4" />
-            El backend no está corriendo
+            No se pudo contactar al backend
           </p>
           <p className="mt-1 text-amber-800">
-            El dashboard no puede procesar mensajes hasta que uvicorn esté arriba.{" "}
-            <code className="text-xs">cd backend</code> y{" "}
-            <code className="text-xs">.\.venv\Scripts\python.exe -m uvicorn app.main:app --port 8000</code>
+            El dashboard no puede procesar mensajes hasta que el backend responda. Probó{" "}
+            <code className="text-xs break-all">{API_URL}</code>.{" "}
+            {isProduction
+              ? "Si la app está desplegada, revisá que NEXT_PUBLIC_API_URL apunte al backend correcto."
+              : "En local, subilo con: .\\.venv\\Scripts\\python.exe -m uvicorn app.main:app --port 8000"}
           </p>
         </div>
       ) : null}

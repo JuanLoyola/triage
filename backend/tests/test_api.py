@@ -13,9 +13,9 @@ from __future__ import annotations
 import pytest
 from httpx import ASGITransport, AsyncClient
 
-from app import db
-from app.llm import MockProvider
-from app.main import app, get_llm
+from app import db, main as main_module
+from app.llm import LLMError, MockProvider
+from app.main import app
 
 SESSION_A = "header-session-aaaa"
 SESSION_B = "header-session-bbbb"
@@ -31,11 +31,9 @@ def clean_db():
 
 
 @pytest.fixture
-def stub_provider():
-    """Swap the LLM dependency so no test spends provider quota."""
-    app.dependency_overrides[get_llm] = lambda: MockProvider(fail_times=0)
-    yield
-    app.dependency_overrides.clear()
+def stub_provider(monkeypatch):
+    """Swap the provider factory so no test spends quota."""
+    monkeypatch.setattr(main_module, "get_llm", lambda: MockProvider(fail_times=0))
 
 
 @pytest.fixture
@@ -90,6 +88,80 @@ class TestQuota:
         body = (await client.get("/api/quota")).json()
         assert "global_remaining" in body
         assert body["global_remaining"] > 0
+
+
+class TestProviderUnavailable:
+    """A missing API key must not become a bare 500.
+
+    This is what the production deployment did: no GEMINI_API_KEY on the Vercel
+    project, so building the provider raised and the request 500ed with an opaque
+    "Internal Server Error" while GET endpoints kept working.
+    """
+
+    async def test_missing_key_returns_a_typed_state(self, client, monkeypatch):
+        def boom():
+            raise LLMError("GEMINI_API_KEY no está definida")
+
+        monkeypatch.setattr(main_module, "get_llm", boom)
+
+        response = await client.post("/api/triage", json=PAYLOAD)
+
+        assert response.status_code == 200
+        body = response.json()
+        assert body["status"] == "unavailable"
+        assert body["unavailable"] is True
+        assert "GEMINI_API_KEY" in body["error"]
+
+    async def test_missing_key_does_not_burn_budget(self, client, monkeypatch):
+        """A misconfigured service is not an execution the visitor spent."""
+        def boom():
+            raise LLMError("GEMINI_API_KEY no está definida")
+
+        monkeypatch.setattr(main_module, "get_llm", boom)
+
+        await client.post("/api/triage", json=PAYLOAD)
+
+        quota = (await client.get("/api/quota")).json()
+        assert quota["used"] == 0
+
+
+class TestCors:
+    async def test_allows_the_production_frontend_origin(self, client):
+        """The deployed dashboard is cross-origin, so this must be allowed."""
+        response = await client.get(
+            "/api/quota",
+            headers={"Origin": "https://triage-front.vercel.app"},
+        )
+        assert response.headers.get("access-control-allow-origin") == (
+            "https://triage-front.vercel.app"
+        )
+
+    async def test_allows_the_session_header_on_preflight(self, client):
+        """X-Session-Id triggers a preflight, which failed with a 400 before."""
+        response = await client.options(
+            "/api/quota",
+            headers={
+                "Origin": "https://triage-front.vercel.app",
+                "Access-Control-Request-Method": "GET",
+                "Access-Control-Request-Headers": "x-session-id",
+            },
+        )
+        assert response.status_code == 200
+        assert response.headers.get("access-control-allow-origin") is not None
+
+    async def test_still_allows_local_development(self, client):
+        response = await client.get(
+            "/api/quota", headers={"Origin": "http://localhost:3000"}
+        )
+        assert response.headers.get("access-control-allow-origin") == (
+            "http://localhost:3000"
+        )
+
+    async def test_rejects_an_unknown_origin(self, client):
+        response = await client.get(
+            "/api/quota", headers={"Origin": "https://evil.example.com"}
+        )
+        assert response.headers.get("access-control-allow-origin") is None
 
 
 class TestValidation:

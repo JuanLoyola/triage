@@ -24,11 +24,29 @@ from .env import load_env  # noqa: F401  (import side effect: loads .env)
 
 from . import db, ratelimit
 from .graph import run_triage
-from .llm import LLMProvider, get_provider
+from .llm import LLMError, LLMProvider, get_provider
 from .models import ChatRequest, ExtractionState, RunResult
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
 logger = logging.getLogger(__name__)
+
+
+# Origins allowed to call this API. The browser sends the request cross-origin,
+# so an unlisted origin gets a failed preflight and never reaches the endpoint.
+#
+# The Vercel production frontend is listed explicitly because a bare *.vercel.app
+# wildcard is not supported by CORSMiddleware, and each Vercel deployment gets
+# its own subdomain, so a preview URL needs adding per deployment.
+ALLOWED_ORIGINS = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "https://triage-front.vercel.app",
+]
+
+# Fallback read from the environment, comma separated. Used for preview
+# deployments without a code change.
+_extra_origins = os.getenv("ALLOWED_ORIGINS", "")
+ALLOWED_ORIGINS += [o.strip() for o in _extra_origins.split(",") if o.strip()]
 
 
 @asynccontextmanager
@@ -47,13 +65,12 @@ app = FastAPI(title="Triage API", version="0.2.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-    ],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
+    # The dashboard sends X-Session-Id, so it must be allowed explicitly.
     allow_headers=["*"],
+    expose_headers=["X-Session-Id"],
 )
 
 
@@ -62,7 +79,24 @@ def get_llm() -> LLMProvider:
     return get_provider()
 
 
-LLM = Annotated[LLMProvider, Depends(get_llm)]
+def unavailable_result(request: ChatRequest, message: str) -> RunResult:
+    """Build the response for a provider that could not be constructed.
+
+    A missing API key is a deployment problem, not a rejection of the operator's
+    message, so it comes back as a typed state instead of a bare 500.
+    """
+    return RunResult(
+        status=ExtractionState.UNAVAILABLE,
+        attempts=[],
+        ticket=None,
+        customer_message=request.customer_message,
+        channel=request.channel,
+        max_retries=request.max_retries,
+        unavailable=True,
+        error=message,
+        total_ms=None,
+        runs_remaining=ratelimit.remaining_today(),
+    )
 
 
 @app.get("/health")
@@ -100,7 +134,6 @@ async def quota(x_session_id: str | None = Header(default=None, alias="X-Session
 @app.post("/api/triage", response_model=RunResult)
 async def triage(
     request: ChatRequest,
-    llm: LLM,
     x_session_id: str | None = Header(default=None, alias="X-Session-Id"),
 ) -> RunResult:
     """Run one triage execution with the self-correcting loop (CA 3.2, 3.3).
@@ -109,6 +142,14 @@ async def triage(
     `quota_exceeded`: that is provider exhaustion, not a harness failure.
     """
     session_id = ratelimit.sanitize_session_id(x_session_id)
+
+    # Build the provider before consuming budget: a misconfigured key is not an
+    # execution and must not burn one of the visitor's three runs.
+    try:
+        provider = get_llm()
+    except LLMError as exc:
+        logger.error("No se pudo construir el proveedor: %s", exc)
+        return unavailable_result(request, str(exc))
 
     try:
         # One row per execution. The outcome is stamped on later.
@@ -131,13 +172,18 @@ async def triage(
 
     try:
         state = await run_triage(
-            provider=llm,
+            provider=provider,
             customer_message=request.customer_message,
             channel=request.channel,
             max_retries=request.max_retries,
         )
     except ValidationError as exc:
         raise HTTPException(status_code=422, detail=exc.errors()) from exc
+    except LLMError as exc:
+        # A provider that fails outside the graph (network, DNS, bad key at
+        # call time) still deserves a readable answer, not a 500.
+        logger.error("El proveedor falló fuera del grafo: %s", exc)
+        return unavailable_result(request, str(exc))
 
     run_status = state["status"]
     ratelimit.mark_finished(run_status.value, session_id)
@@ -151,6 +197,7 @@ async def triage(
         max_retries=request.max_retries,
         needs_manual_review=run_status is ExtractionState.NEEDS_MANUAL_REVIEW,
         quota_exceeded=run_status is ExtractionState.QUOTA_EXCEEDED,
+        unavailable=run_status is ExtractionState.UNAVAILABLE,
         error=state.get("error"),
         total_ms=state.get("total_ms"),
         runs_remaining=ratelimit.remaining_today(session_id),

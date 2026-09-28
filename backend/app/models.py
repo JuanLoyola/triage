@@ -32,11 +32,15 @@ class ExtractionState(str, Enum):
     because the Gemini free tier runs out, and retrying a 429 is pointless: the
     quota stays exhausted for every retry. Reported as a successful HTTP call
     with a clear message, not as a harness failure.
+
+    UNAVAILABLE covers a misconfigured or unreachable provider. It exists so a
+    deployment problem surfaces as a readable message instead of a bare 500.
     """
 
     SUCCESS = "success"
     NEEDS_MANUAL_REVIEW = "needs_manual_review"
     QUOTA_EXCEEDED = "quota_exceeded"
+    UNAVAILABLE = "unavailable"
 
 
 class ExtractedTicket(BaseModel):
@@ -125,6 +129,7 @@ class RunResult(BaseModel):
     max_retries: int
     needs_manual_review: bool = False
     quota_exceeded: bool = False
+    unavailable: bool = False
     error: str | None = None
     total_ms: int | None = None
     # How many daily executions the caller has left after this one.

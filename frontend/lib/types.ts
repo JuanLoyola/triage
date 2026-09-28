@@ -37,7 +37,8 @@ export interface AttemptLog {
 export type RunStatus =
   | "success"
   | "needs_manual_review"
-  | "quota_exceeded";
+  | "quota_exceeded"
+  | "unavailable";
 
 export interface RunResult {
   status: RunStatus;
@@ -48,6 +49,7 @@ export interface RunResult {
   max_retries: number;
   needs_manual_review: boolean;
   quota_exceeded: boolean;
+  unavailable: boolean;
   error: string | null;
   total_ms: number | null;
   runs_remaining: number | null;

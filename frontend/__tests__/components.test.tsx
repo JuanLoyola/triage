@@ -28,6 +28,7 @@ const run = (over: Partial<RunResult> = {}): RunResult => ({
   max_retries: 3,
   needs_manual_review: false,
   quota_exceeded: false,
+  unavailable: false,
   error: null,
   total_ms: 7,
   runs_remaining: 2,
@@ -206,6 +207,21 @@ describe("ResultPanel", () => {
     );
     expect(screen.getByText("Cuota del free tier agotada")).toBeInTheDocument();
     expect(screen.getByText(/harness está funcionando correctamente/)).toBeInTheDocument();
+  });
+
+  it("shows a service misconfiguration as unavailable, not as a rejection", () => {
+    render(
+      <ResultPanel
+        result={run({
+          status: "unavailable",
+          unavailable: true,
+          error: "GEMINI_API_KEY no está definida",
+        })}
+      />,
+    );
+    expect(screen.getByText(/no está disponible/)).toBeInTheDocument();
+    // It must be explicit that the operator's message was not the problem.
+    expect(screen.getByText(/No es un problema con tu mensaje/)).toBeInTheDocument();
   });
 
   it("blames the provider on manual review when the provider failed everything", () => {

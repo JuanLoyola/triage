@@ -13,6 +13,7 @@ import {
   FileText,
   UserCheck,
   UserX,
+  Wrench,
 } from "lucide-react";
 import { CategoryBadge, UrgencyBadge } from "@/components/badges";
 import { JsonBlock } from "@/components/json-block";
@@ -21,6 +22,24 @@ import { describeRecovery, needsManualReviewCopy } from "@/lib/recovery";
 import type { RunResult } from "@/lib/types";
 
 function StatusBanner({ result }: { result: RunResult }) {
+  if (result.status === "unavailable") {
+    return (
+      <div
+        role="alert"
+        className="flex gap-3 rounded-lg border border-rose-200 bg-rose-50 p-4 text-sm text-rose-900"
+      >
+        <Wrench aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0" />
+        <div>
+          <p className="font-medium">El servicio del agente no está disponible</p>
+          <p className="mt-1 text-rose-800">
+            No es un problema con tu mensaje: el backend no tiene configurada la clave del
+            proveedor. {result.error ?? ""}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   if (result.status === "quota_exceeded") {
     return (
       <div

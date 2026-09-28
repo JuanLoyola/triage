@@ -44,9 +44,21 @@ test.describe("carga inicial", () => {
     await page.route("**/health", (route) => route.abort("connectionrefused"));
     await page.goto("/");
 
-    await expect(page.getByText("El backend no está corriendo")).toBeVisible({
+    await expect(page.getByText("No se pudo contactar al backend")).toBeVisible({
       timeout: 15_000,
     });
+  });
+
+  test("el aviso de backend caído muestra a qué URL se intentó", async ({ page }) => {
+    // The banner naming the configured URL is what made the production
+    // misconfiguration obvious: it was pointing at the visitor's own localhost.
+    await page.route("**/health", (route) => route.abort("connectionrefused"));
+    await page.goto("/");
+
+    await expect(page.getByText("No se pudo contactar al backend")).toBeVisible({
+      timeout: 15_000,
+    });
+    await expect(page.getByText(/8000/)).toBeVisible();
   });
 });
 
