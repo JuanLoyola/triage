@@ -13,3 +13,12 @@ __pycache__/
 # Node (frontend)
 node_modules/
 .next/
+
+# Logs y artefactos de dev
+*.log
+*.err
+dev.log
+dev.err
+uvicorn.log
+uvicorn.err
+tsconfig.tsbuildinfo
