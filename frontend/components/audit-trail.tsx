@@ -43,7 +43,7 @@ export function AuditTrail({ result }: { result: RunResult }) {
   const attempts = result.attempts ?? [];
 
   return (
-    <details className="group overflow-hidden rounded-lg border border-slate-200 bg-white">
+    <details className="group overflow-hidden rounded-lg border border-slate-200 bg-white/85 backdrop-blur-sm">
       <summary className="flex cursor-pointer items-center justify-between px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50">
         <span>
           Audit trail

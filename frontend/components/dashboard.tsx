@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import gsap from "gsap";
 import { HowItWorks } from "@/components/how-it-works";
 import { ResultPanel } from "@/components/result-panel";
 import { TriageForm } from "@/components/triage-form";
@@ -16,14 +17,23 @@ interface Quota {
   global_remaining: number;
 }
 
+/** Honour the OS reduced-motion setting: no tweens, no motion. */
+function prefersReducedMotion(): boolean {
+  if (typeof window === "undefined") return false;
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
 export function Dashboard() {
+  const root = React.useRef<HTMLDivElement>(null);
+  const resultRef = React.useRef<HTMLDivElement>(null);
+
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [result, setResult] = React.useState<RunResult | null>(null);
   const [networkError, setNetworkError] = React.useState<string | null>(null);
   const [backendDown, setBackendDown] = React.useState(false);
+  const [quota, setQuota] = React.useState<Quota | null>(null);
   // Bumped after a successful run to remount TriageForm with clean state.
   const [formKey, setFormKey] = React.useState(0);
-  const [quota, setQuota] = React.useState<Quota | null>(null);
 
   const loadQuota = React.useCallback(async () => {
     try {
@@ -54,6 +64,55 @@ export function Dashboard() {
     };
   }, [loadQuota]);
 
+  // Entrance: stagger the stacked sections once, on mount.
+  React.useEffect(() => {
+    if (!root.current || prefersReducedMotion()) return;
+
+    // `revert: true` so the inline styles GSAP sets are undone on unmount.
+    const ctx = gsap.context(() => {
+      gsap.from("[data-animate='section']", {
+        opacity: 0,
+        y: 18,
+        duration: 0.55,
+        ease: "power2.out",
+        stagger: 0.09,
+      });
+    }, root);
+
+    return () => ctx.revert();
+  }, []);
+
+  // The result panel is the payoff, so it gets its own entrance each time.
+  React.useEffect(() => {
+    const node = resultRef.current;
+    if (!result || prefersReducedMotion() || !node) return;
+
+    const ctx = gsap.context(() => {
+      gsap.from(node, {
+        opacity: 0,
+        y: 22,
+        duration: 0.5,
+        ease: "power2.out",
+      });
+      gsap.from(node.querySelectorAll("[data-animate='block']"), {
+        opacity: 0,
+        y: 14,
+        duration: 0.4,
+        ease: "power2.out",
+        stagger: 0.08,
+        delay: 0.08,
+      });
+      // The urgency dot pulses once to draw the eye without looping.
+      gsap.fromTo(
+        node.querySelectorAll("[data-animate='dot']"),
+        { scale: 0.6, opacity: 0.4 },
+        { scale: 1, opacity: 1, duration: 0.45, ease: "back.out(2)", stagger: 0.05 },
+      );
+    }, node);
+
+    return () => ctx.revert();
+  }, [result]);
+
   async function handleSubmit(message: string, channel: string, maxRetries: number) {
     setIsSubmitting(true);
     setNetworkError(null);
@@ -62,24 +121,18 @@ export function Dashboard() {
       const response = await fetch(`${API_URL}/api/triage`, {
         method: "POST",
         headers: { "Content-Type": "application/json", ...sessionHeaders() },
-        body: JSON.stringify({
-          customer_message: message,
-          channel,
-          max_retries: maxRetries,
-        }),
+        body: JSON.stringify({ customer_message: message, channel, max_retries: maxRetries }),
       });
 
       if (!response.ok) {
         const detail = await response.json().catch(() => null);
-        const raw =
-          typeof detail?.detail === "string" ? detail.detail : response.statusText;
+        const raw = typeof detail?.detail === "string" ? detail.detail : response.statusText;
 
         if (response.status === 429) {
           setNetworkError(raw);
           void loadQuota();
           return;
         }
-
         setNetworkError(`El backend respondió ${response.status}: ${raw}`);
         return;
       }
@@ -90,7 +143,6 @@ export function Dashboard() {
         setQuota({ ...quota, remaining: data.runs_remaining, used: quota.used + 1 });
       }
 
-      // FR-24: remount the form to clear it, only on a successful run.
       if (data.status === "success") setFormKey((key) => key + 1);
     } catch (error) {
       setNetworkError(
@@ -105,22 +157,25 @@ export function Dashboard() {
   const exhausted = quota !== null && quota.remaining <= 0;
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-10 sm:py-14">
-      <header className="mb-6">
+    <div ref={root} className="mx-auto max-w-3xl px-4 py-10 sm:py-14">
+      <header className="mb-6" data-animate="section">
         <h1 className="text-2xl font-semibold text-slate-800">Triage de Tickets</h1>
         <p className="mt-1.5 text-sm text-slate-600">
           Clasificación automática con bucle de autocorrección y validación estricta.
         </p>
       </header>
 
-      <HowItWorks />
+      <div data-animate="section">
+        <HowItWorks />
+      </div>
 
       {quota ? (
         <div
+          data-animate="section"
           className={`mb-6 rounded-lg border p-4 text-sm ${
             exhausted
-              ? "border-amber-200 bg-amber-50 text-amber-900"
-              : "border-slate-200 bg-white text-slate-700"
+              ? "border-amber-200 bg-amber-50/90 text-amber-900"
+              : "border-slate-200 bg-white/80 text-slate-700 backdrop-blur-sm"
           }`}
         >
           <p className="font-medium">
@@ -143,7 +198,8 @@ export function Dashboard() {
       {backendDown ? (
         <div
           role="alert"
-          className="mb-6 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900"
+          data-animate="section"
+          className="mb-6 rounded-lg border border-amber-200 bg-amber-50/90 p-4 text-sm text-amber-900"
         >
           <p className="font-medium">El backend no está corriendo</p>
           <p className="mt-1 text-amber-800">
@@ -155,7 +211,10 @@ export function Dashboard() {
       ) : null}
 
       <div className="space-y-8">
-        <section className="rounded-xl border border-slate-200 bg-white p-5 sm:p-6">
+        <section
+          data-animate="section"
+          className="rounded-xl border border-slate-200 bg-white/85 p-5 backdrop-blur-sm sm:p-6"
+        >
           <TriageForm
             key={formKey}
             isSubmitting={isSubmitting}
@@ -167,7 +226,11 @@ export function Dashboard() {
           />
         </section>
 
-        {result ? <ResultPanel result={result} /> : null}
+        {result ? (
+          <div ref={resultRef}>
+            <ResultPanel result={result} />
+          </div>
+        ) : null}
       </div>
     </div>
   );

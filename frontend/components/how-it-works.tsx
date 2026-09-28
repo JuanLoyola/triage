@@ -28,8 +28,8 @@ export function HowItWorks() {
         <span className="font-medium text-slate-800">categoría</span>,{" "}
         <span className="font-medium text-slate-800">urgencia</span>,{" "}
         <span className="font-medium text-slate-800">monto</span> y si{" "}
-        <span className="font-medium text-slate-800">requiere atención humana</span>. Lo que
-        interesting es que su salida se valida contra un esquema estricto, y si falla el
+        <span className="font-medium text-slate-800">requiere atención humana</span>. Lo
+        interesante es que su salida se valida contra un esquema estricto, y si falla el
         agente se entera del error exacto y se corrige sin intervención humana.
       </p>
 

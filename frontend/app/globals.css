@@ -70,6 +70,61 @@ summary {
   *::before,
   *::after {
     animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+/* ---------------------------------------------------------------------------
+   Drifting background gradient.
+   Long, offset cycles so the three washes never sync up into a visible loop.
+   Transform-only animation, so it stays on the compositor.
+--------------------------------------------------------------------------- */
+@keyframes drift-a {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  33% {
+    transform: translate3d(8%, 6%, 0) scale(1.08);
+  }
+  66% {
+    transform: translate3d(-5%, 9%, 0) scale(0.96);
+  }
+}
+
+@keyframes drift-b {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  40% {
+    transform: translate3d(-9%, 8%, 0) scale(1.06);
+  }
+  70% {
+    transform: translate3d(4%, -6%, 0) scale(0.94);
+  }
+}
+
+@keyframes drift-c {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  45% {
+    transform: translate3d(7%, -8%, 0) scale(1.1);
+  }
+  80% {
+    transform: translate3d(-6%, -3%, 0) scale(0.97);
+  }
+}
+
+.animate-drift-a {
+  animation: drift-a 34s ease-in-out infinite;
+}
+.animate-drift-b {
+  animation: drift-b 41s ease-in-out infinite;
+}
+.animate-drift-c {
+  animation: drift-c 47s ease-in-out infinite;
 }

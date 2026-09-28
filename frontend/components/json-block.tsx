@@ -95,7 +95,7 @@ export function JsonBlock({ data }: { data: unknown }) {
   }
 
   return (
-    <pre className="overflow-x-auto whitespace-pre-wrap break-words rounded-lg border border-slate-200 bg-slate-50 p-4 text-xs leading-relaxed text-slate-700">
+    <pre className="overflow-x-auto whitespace-pre-wrap break-words rounded-lg border border-slate-200 bg-slate-50/90 p-4 text-xs leading-relaxed text-slate-700">
       <code>{nodes}</code>
     </pre>
   );

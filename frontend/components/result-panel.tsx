@@ -106,10 +106,15 @@ function StatusBanner({ result }: { result: RunResult }) {
 export function ResultPanel({ result }: { result: RunResult }) {
   return (
     <div className="space-y-5">
-      <StatusBanner result={result} />
+      <div data-animate="block">
+        <StatusBanner result={result} />
+      </div>
 
       {result.ticket ? (
-        <section className="rounded-lg border border-slate-200 bg-white p-4">
+        <section
+          data-animate="block"
+          className="rounded-lg border border-slate-200 bg-white/85 p-4 backdrop-blur-sm"
+        >
           <h2 className="mb-3 text-sm font-medium text-slate-600">Ticket procesado</h2>
 
           <div className="mb-3 flex flex-wrap items-center gap-2">
@@ -133,11 +138,13 @@ export function ResultPanel({ result }: { result: RunResult }) {
         </section>
       ) : null}
 
-      <AuditTrail result={result} />
+      <div data-animate="block">
+        <AuditTrail result={result} />
+      </div>
 
       {/* CA 4.3: the strict JSON is always shown, even for failed runs, so the
           evaluator can see what the model actually produced. */}
-      <section>
+      <section data-animate="block">
         <h2 className="mb-2 text-sm font-medium text-slate-600">JSON estricto</h2>
         <JsonBlock data={result.ticket ?? { status: result.status, error: result.error }} />
       </section>

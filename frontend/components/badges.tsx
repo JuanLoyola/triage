@@ -27,7 +27,11 @@ export function UrgencyBadge({ urgency }: { urgency: string }) {
     <span
       className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${style.chip}`}
     >
-      <span className={`h-1.5 w-1.5 rounded-full ${style.dot}`} aria-hidden="true" />
+      <span
+        data-animate="dot"
+        className={`h-1.5 w-1.5 rounded-full ${style.dot}`}
+        aria-hidden="true"
+      />
       {urgency}
     </span>
   );
