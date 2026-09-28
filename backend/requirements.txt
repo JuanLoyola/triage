@@ -1,0 +1,19 @@
+# Runtime dependencies for Vercel.
+#
+# Vercel's Python builder installs from requirements.txt; it does not read
+# pyproject.toml. Without this file the backend deploys as a project with no
+# dependencies and every import fails at runtime.
+#
+# Kept minimal on purpose: only what the API actually imports at runtime.
+# Test-only packages (pytest, pytest-asyncio) live in pyproject.toml [dev] and
+# are not needed in the deployment.
+#
+# Regenerate locally with:
+#   .\.venv\Scripts\python.exe -m pip freeze
+
+fastapi==0.141.1
+uvicorn[standard]==0.54.0
+pydantic==2.13.5
+langgraph==1.2.12
+google-genai==2.25.0
+httpx==0.28.1
