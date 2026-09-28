@@ -1,34 +1,22 @@
 "use client";
 
 import React from "react";
-import { useRouter } from "next/navigation";
+import { HowItWorks } from "@/components/how-it-works";
 import { ResultPanel } from "@/components/result-panel";
 import { TriageForm } from "@/components/triage-form";
-import { createClient } from "@/lib/supabase/client";
+import { sessionHeaders } from "@/lib/session";
 import type { RunResult } from "@/lib/types";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000";
-
-interface Props {
-  email: string | null;
-}
-
-/** GET /api/quota needs the caller's session token. */
-async function authHeaders(): Promise<Record<string, string>> {
-  const supabase = createClient();
-  const { data } = await supabase.auth.getSession();
-  const token = data.session?.access_token;
-  return token ? { Authorization: `Bearer ${token}` } : {};
-}
 
 interface Quota {
   limit: number;
   used: number;
   remaining: number;
+  global_remaining: number;
 }
 
-export function Dashboard({ email }: Props) {
-  const router = useRouter();
+export function Dashboard() {
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [result, setResult] = React.useState<RunResult | null>(null);
   const [networkError, setNetworkError] = React.useState<string | null>(null);
@@ -39,9 +27,7 @@ export function Dashboard({ email }: Props) {
 
   const loadQuota = React.useCallback(async () => {
     try {
-      const response = await fetch(`${API_URL}/api/quota`, {
-        headers: await authHeaders(),
-      });
+      const response = await fetch(`${API_URL}/api/quota`, { headers: sessionHeaders() });
       if (response.ok) setQuota((await response.json()) as Quota);
     } catch {
       // The banner below already reports a dead backend.
@@ -68,12 +54,6 @@ export function Dashboard({ email }: Props) {
     };
   }, [loadQuota]);
 
-  async function handleSignOut() {
-    await createClient().auth.signOut();
-    router.push("/login");
-    router.refresh();
-  }
-
   async function handleSubmit(message: string, channel: string, maxRetries: number) {
     setIsSubmitting(true);
     setNetworkError(null);
@@ -81,7 +61,7 @@ export function Dashboard({ email }: Props) {
     try {
       const response = await fetch(`${API_URL}/api/triage`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", ...(await authHeaders()) },
+        headers: { "Content-Type": "application/json", ...sessionHeaders() },
         body: JSON.stringify({
           customer_message: message,
           channel,
@@ -94,7 +74,6 @@ export function Dashboard({ email }: Props) {
         const raw =
           typeof detail?.detail === "string" ? detail.detail : response.statusText;
 
-        // 429 is the daily cap, which the quota banner already explains.
         if (response.status === 429) {
           setNetworkError(raw);
           void loadQuota();
@@ -127,25 +106,14 @@ export function Dashboard({ email }: Props) {
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-10 sm:py-14">
-      <header className="mb-6 flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold text-slate-800">Triage de Tickets</h1>
-          <p className="mt-1.5 text-sm text-slate-600">
-            Clasificación automática con bucle de autocorrección y validación estricta.
-          </p>
-        </div>
-
-        <div className="flex shrink-0 flex-col items-end gap-1.5">
-          {email ? <span className="text-xs text-slate-500">{email}</span> : null}
-          <button
-            type="button"
-            onClick={handleSignOut}
-            className="text-xs text-slate-500 underline-offset-4 hover:text-slate-700 hover:underline"
-          >
-            Salir
-          </button>
-        </div>
+      <header className="mb-6">
+        <h1 className="text-2xl font-semibold text-slate-800">Triage de Tickets</h1>
+        <p className="mt-1.5 text-sm text-slate-600">
+          Clasificación automática con bucle de autocorrección y validación estricta.
+        </p>
       </header>
+
+      <HowItWorks />
 
       {quota ? (
         <div
@@ -160,9 +128,15 @@ export function Dashboard({ email }: Props) {
           </p>
           <p className="mt-1 text-slate-600">
             {exhausted
-              ? "Se reinician a medianoche. Cada ejecución consume cuota del free tier de Gemini, que es compartida entre todos los usuarios."
-              : "Cada ejecución consume cuota del free tier de Gemini, que es compartida. Si sólo querés ver cómo funciona, usá un preset. Si querés ver la autocorrección, escribí tu propio mensaje: es más probable que el modelo se equivoque."}
+              ? "Se agotaron las ejecuciones de esta sesión. Se reinician a medianoche, o abrí otra pestaña para seguir probando."
+              : "El límite es por sesión de navegador, así que no se comparte entre visitantes. Si sólo querés ver cómo funciona, usá un preset. Si querés ver la autocorrección en acción, escribí tu propio mensaje, que es más probable que el modelo se equivoque."}
           </p>
+          {quota.global_remaining <= 20 ? (
+            <p className="mt-2 text-xs text-amber-700">
+              La demo completa tiene {quota.global_remaining} ejecuciones disponibles hoy. La
+              cuota del free tier de Gemini es compartida y finita.
+            </p>
+          ) : null}
         </div>
       ) : null}
 
