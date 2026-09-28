@@ -8,7 +8,7 @@ llamada a una API; el harness es el producto.
 ![El dashboard con un ticket procesado](docs/screenshot.png)
 
 `Next.js` · `FastAPI` · `LangGraph` · `Pydantic` · `Gemini` · `SQLite` · `GSAP` ·
-`Tailwind` · `pytest` — **64 tests, cero costo de API, sin Docker.**
+`Tailwind` · `pytest` · `Jest` · `Playwright` — **151 tests, cero costo de API, sin Docker.**
 
 ---
 
@@ -21,6 +21,7 @@ llamada a una API; el harness es el producto.
 - [Los tres estados terminales](#los-tres-estados-terminales)
 - [Con qué herramientas](#con-qué-herramientas)
 - [Cómo lo desarrollamos](#cómo-lo-desarrollamos)
+- [Tests](#tests)
 - [Arrancar](#arrancar)
 - [Accesibilidad](#accesibilidad)
 - [Límites conocidos](#límites-conocidos)
@@ -183,7 +184,7 @@ dice explícitamente.
 | Iconos       | lucide-react            | Un mismo set, peso y grid consistentes                    |
 | Esquema      | Zod                     | Valida el formulario en el cliente                        |
 | Diagramas    | Mermaid                 | Se versiona como texto, se renderiza en GitHub            |
-| Tests        | pytest + pytest-asyncio | 64 tests, sin requerir API key                            |
+| Tests        | pytest, Jest, Playwright | 151 tests, sin requerir API key                           |
 
 Sin base de datos externa, sin Docker, sin cuenta de pago. Todo corre en local con dos
 terminales.
@@ -235,11 +236,78 @@ Cuatro de ellos no se habrían visto leyendo el código:
    con `email` y `name` como `NOT NULL`, y el trigger insertaba solo `id`. El error
    ("Database error creating new user") no señalaba al trigger.
 
+5. **El error de longitud no se mostraba nunca.** La validación corría solo en el submit,
+   pero el botón de envío está deshabilitado cuando el mensaje es corto, así que el usuario
+   no tenía forma de disparar la validación que explicaba el motivo. Lo encontró un test
+   e2e; la spec lo pedía explícitamente en EC-1. Ahora el error aparece al tipear, con
+   cuántos caracteres faltan o sobran.
+
+6. **`next dev` no hidrataba en este entorno.** La página se veía perfecta pero React nunca
+   se adjuntaba al DOM, así que ningún efecto corría: no cargaba la cuota, no consultaba la
+   salud del backend. Se企业所得税ó revisando el DOM en busca de las claves internas de
+   React, que no estaban. Los e2e corren contra el build de producción por eso.
+
 ### Un error de criterio
 
 Durante la integración se probó el login inventando una contraseña para la cuenta del
 usuario. Fue un error de procedimiento: las credenciales no se inventan ni se prueban así.
 El mismo comportamiento quedó verificado por un camino que no las requiere.
+
+---
+
+## Tests
+
+151 en total, en tres capas, y ninguno necesita una API key.
+
+```powershell
+# Backend — 64 tests
+cd backend
+.\.venv\Scripts\python.exe -m pytest -q
+
+# Frontend — 68 unitarios (Jest + Testing Library)
+cd frontend
+npm test
+
+# Frontend — 19 e2e (Playwright)
+npm run test:e2e
+
+# Todo lo estático de una: tipos, lint y unitarios
+npm run test:all
+
+# Contraste de accesibilidad
+node scripts/check-contrast.mjs
+```
+
+| Capa     | Herramienta | Cubre                                                       |
+| -------- | ----------- | ----------------------------------------------------------- |
+| Backend  | pytest      | Schema, reglas de negocio, el loop de reintentos, rate limit, HTTP |
+| Frontend | Jest + RTL  | Lógica de recuperación, tokenizador JSON, sesión, componentes |
+| Frontend | Playwright  | El flujo completo en un navegador real                        |
+
+**Qué testea cada archivo del frontend y por qué existe:**
+
+- `__tests__/recovery.test.ts` — decide si la UI afirma que hubo autocorrección. El caso
+  importante es el que fallen todos los intentos por proveedor: el banner tiene que decir
+  "No hubo autocorrección", no vender reintentos como corrección.
+- `__tests__/json-tokens.test.ts` — el bloque resaltado tiene que producir **JSON válido**,
+  porque si el texto no parsea estaría representando mal el payload, que es lo contrario de
+  lo que hace el harness.
+- `__tests__/session.test.ts` — el id de sesión tiene que coincidir con el patrón que el
+  backend acepta. Un id rechazado manda a todos los visitantes al mismo bucket en
+  silencio, que es el bug que ya se encontró una vez.
+- `__tests__/components.test.tsx` — que el color nunca sea el único indicador de urgencia,
+  y que los tres estados terminales rendericen el aviso correcto.
+- `e2e/dashboard.spec.ts` — el flujo completo: validar, enviar, ver el ticket, abrir el
+  audit trail, agotar el presupuesto y confirmar que una sesión nueva arranque entera.
+
+**Los e2e corren contra el build de producción, no contra `next dev`.** El dev server con
+Turbopack no hidrataba en este entorno: la página servía su HTML de SSR pero React nunca se
+adjuntaba, así que ningún efecto corría y el dashboard era inerte. Es un problema del dev
+server, no de la app, pero un dev server que no hidrata no sirve como objetivo de tests.
+
+**Por qué el e2e usa el LLM mock.** El presupuesto es de 3 ejecuciones por sesión y la
+cuota de Gemini es real. Una suite que dependa de eso no se puede volver a correr. Con
+`MOCK_LLM=true` el harness es determinista y gratis, igual que en los tests del backend.
 
 ---
 

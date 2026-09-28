@@ -79,6 +79,25 @@ export function TriageForm({
     onSubmit(message.trim(), channel, maxRetries);
   }
 
+  /**
+   * Show the length error as soon as the field has content.
+   *
+   * Validating only on submit was a dead end: the submit button is disabled
+   * while the message is too short, so the user could never trigger the
+   * validation that would explain why. Spec EC-1 expects the error inline.
+   *
+   * Nothing is shown for an empty field, so the form does not open shouting.
+   */
+  function handleMessageChange(value: string) {
+    setMessage(value);
+    if (messageError) {
+      const parsed = messageSchema.safeParse(value.trim());
+      setMessageError(
+        parsed.success ? null : (parsed.error.issues[0]?.message ?? "Mensaje inválido."),
+      );
+    }
+  }
+
   function applyPreset(presetMessage: string) {
     setMessage(presetMessage);
     setMessageError(null);
@@ -109,10 +128,7 @@ export function TriageForm({
         <textarea
           id="customer-message"
           value={message}
-          onChange={(event) => {
-            setMessage(event.target.value);
-            if (messageError) setMessageError(null);
-          }}
+          onChange={(event) => handleMessageChange(event.target.value)}
           rows={7}
           disabled={isSubmitting}
           placeholder="Pegá acá el mensaje que envió el cliente"
@@ -125,9 +141,18 @@ export function TriageForm({
           }`}
         />
 
+        {/* Inline validation feedback (CA 1.1, EC-1, EC-2). Shown as soon as
+            there is content to judge, so the reason the button is disabled is
+            never a mystery. */}
         {messageError ? (
           <p id="message-error" role="alert" className="mt-1.5 text-xs text-red-600">
             {messageError}
+          </p>
+        ) : messageLength > 0 && !isValid ? (
+          <p id="message-hint" className="mt-1.5 text-xs text-amber-700">
+            {trimmedLength < MIN_MESSAGE_LENGTH
+              ? `Faltan ${MIN_MESSAGE_LENGTH - trimmedLength} caracteres.`
+              : `Supera el máximo por ${trimmedLength - MAX_MESSAGE_LENGTH} caracteres.`}
           </p>
         ) : null}
       </div>

@@ -13,6 +13,9 @@
  */
 const STORAGE_KEY = "triage-session-id";
 
+/** Exported so tests can assert the storage contract. */
+export { STORAGE_KEY };
+
 function generateId(): string {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
     return crypto.randomUUID();

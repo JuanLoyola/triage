@@ -17,51 +17,8 @@ import {
 import { CategoryBadge, UrgencyBadge } from "@/components/badges";
 import { JsonBlock } from "@/components/json-block";
 import { AuditTrail } from "@/components/audit-trail";
+import { describeRecovery, needsManualReviewCopy } from "@/lib/recovery";
 import type { RunResult } from "@/lib/types";
-
-/**
- * Distinguish a validation self-correction from a provider retry.
- *
- * Claiming "autocorrección" when every failed attempt was a 503 misrepresents
- * what the harness did. The audit trail shows the real reason, so the banner
- * has to agree with it.
- */
-function describeRecovery(result: RunResult): { title: string; detail: string } {
-  const attempts = result.attempts ?? [];
-  if (attempts.length <= 1) {
-    return {
-      title: "Ticket validado",
-      detail: "El agente produjo un JSON válido en el primer intento.",
-    };
-  }
-
-  const failures = attempts.filter((log) => !log.succeeded);
-  const providerErrors = failures.filter((log) =>
-    (log.error ?? "").includes("Error del proveedor"),
-  );
-  const validationErrors = failures.length - providerErrors.length;
-
-  if (validationErrors === 0) {
-    return {
-      title: `Ticket validado tras ${attempts.length} intentos`,
-      detail:
-        `El agente no llegó a producir JSON en los primeros ${failures.length} intentos ` +
-        `porque el proveedor falló, no por un error de validación. ` +
-        `No hubo autocorrección en esta corrida.`,
-    };
-  }
-
-  return {
-    title: `Ticket validado tras ${attempts.length} intentos`,
-    detail:
-      `El agente corrigió su propia salida: ${validationErrors} ` +
-      `${validationErrors === 1 ? "error de validación" : "errores de validación"} ` +
-      `le fueron reinyectados hasta producir un JSON válido` +
-      (providerErrors.length > 0
-        ? `. Además hubo ${providerErrors.length} ${providerErrors.length === 1 ? "fallo del proveedor" : "fallos del proveedor"}.`
-        : "."),
-  };
-}
 
 function StatusBanner({ result }: { result: RunResult }) {
   if (result.status === "quota_exceeded") {
@@ -83,11 +40,6 @@ function StatusBanner({ result }: { result: RunResult }) {
   }
 
   if (result.status === "needs_manual_review") {
-    const failures = (result.attempts ?? []).filter((log) => !log.succeeded);
-    const allProvider =
-      failures.length > 0 &&
-      failures.every((log) => (log.error ?? "").includes("Error del proveedor"));
-
     return (
       <div
         role="alert"
@@ -97,16 +49,14 @@ function StatusBanner({ result }: { result: RunResult }) {
         <div>
           <p className="font-medium">Se agotaron los reintentos</p>
           <p className="mt-1 text-amber-800">
-            {allProvider
-              ? "Todos los intentos fallaron por error del proveedor, no por un error de validación. El ticket no se guardó."
-              : "El ticket requiere revisión manual. El log de fallas está en el audit trail y el ticket no se guardó en la base."}
+            {needsManualReviewCopy(result.attempts ?? [])}
           </p>
         </div>
       </div>
     );
   }
 
-  const { title, detail } = describeRecovery(result);
+  const { title, detail } = describeRecovery(result.attempts ?? []);
   return (
     <div
       role="status"

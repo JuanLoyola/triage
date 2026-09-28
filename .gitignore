@@ -27,3 +27,10 @@ dev.err
 uvicorn.log
 uvicorn.err
 tsconfig.tsbuildinfo
+
+# Test artifacts
+test-results/
+playwright-report/
+blob-report/
+coverage/
+*.lcov
