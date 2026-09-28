@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { useRouter } from "next/navigation";
 import { ResultPanel } from "@/components/result-panel";
 import { TriageForm } from "@/components/triage-form";
 import type { RunResult } from "@/lib/types";
@@ -18,10 +19,36 @@ export function Dashboard({ email, isAdmin }: Props) {
   const [networkError, setNetworkError] = React.useState<string | null>(null);
   const [showAll, setShowAll] = React.useState(false);
 
+  const [backendDown, setBackendDown] = React.useState(false);
+  // Bumped after a successful run to remount TriageForm with clean state.
+  const [formKey, setFormKey] = React.useState(0);
+  const router = useRouter();
+
+  // Surface a dead backend up front instead of letting the operator fill in the
+  // form and only then fail.
+  React.useEffect(() => {
+    let cancelled = false;
+
+    async function checkBackend() {
+      try {
+        const response = await fetch(`${API_URL}/health`);
+        if (!cancelled) setBackendDown(!response.ok);
+      } catch {
+        if (!cancelled) setBackendDown(true);
+      }
+    }
+
+    void checkBackend();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   async function handleSignOut() {
     const { createClient } = await import("@/lib/supabase/client");
     await createClient().auth.signOut();
-    window.location.href = "/login";
+    router.push("/login");
+    router.refresh();
   }
 
   async function handleSubmit(message: string, channel: string, maxRetries: number) {
@@ -40,17 +67,27 @@ export function Dashboard({ email, isAdmin }: Props) {
       });
 
       if (!response.ok) {
+        // Distinguish the causes instead of collapsing them into one message.
         const detail = await response.json().catch(() => null);
-        setNetworkError(
-          (detail?.detail as string) ?? "No pudimos procesar el mensaje.",
-        );
+        const message =
+          typeof detail?.detail === "string"
+            ? detail.detail
+            : `El backend respondió ${response.status} ${response.statusText}.`;
+        setNetworkError(message);
         return;
       }
 
-      setResult((await response.json()) as RunResult);
-    } catch {
-      // E-1: network failure between frontend and backend.
-      setNetworkError("No pudimos procesar el mensaje.");
+      const data = (await response.json()) as RunResult;
+      setResult(data);
+
+      // FR-24: remount the form to clear it, only on a successful run.
+      if (data.status === "success") setFormKey((key) => key + 1);
+    } catch (error) {
+      // E-1: the backend is unreachable. Name the URL so the cause is obvious.
+      setNetworkError(
+        `No pudimos conectar con el backend en ${API_URL}. ` +
+          `¿Está corriendo uvicorn? (${error instanceof Error ? error.message : "error desconocido"})`,
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -92,9 +129,24 @@ export function Dashboard({ email, isAdmin }: Props) {
         </div>
       ) : null}
 
+      {backendDown ? (
+        <div
+          role="alert"
+          className="mb-6 rounded-lg bg-amber-500/10 p-4 text-sm text-amber-200 ring-1 ring-amber-500/30"
+        >
+          <p className="font-medium">El backend no está corriendo</p>
+          <p className="mt-1 text-amber-200/80">
+            El dashboard no puede procesar mensajes hasta que uvicorn esté arriba.{" "}
+            <code className="text-xs">cd backend</code> y{" "}
+            <code className="text-xs">.\.venv\Scripts\python.exe -m uvicorn app.main:app --port 8000</code>
+          </p>
+        </div>
+      ) : null}
+
       <div className="space-y-8">
         <section className="rounded-xl bg-slate-900/60 p-5 ring-1 ring-slate-800 sm:p-6">
           <TriageForm
+            key={formKey}
             isSubmitting={isSubmitting}
             onSubmit={handleSubmit}
             onDismissResult={() => setResult(null)}

@@ -1,9 +1,11 @@
 "use client";
 
 import React from "react";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
 export function LoginForm() {
+  const router = useRouter();
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
   const [error, setError] = React.useState<string | null>(null);
@@ -31,7 +33,8 @@ export function LoginForm() {
       return;
     }
 
-    window.location.href = "/";
+    router.push("/");
+    router.refresh();
   }
 
   async function handlePasswordReset() {

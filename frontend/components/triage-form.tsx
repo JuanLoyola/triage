@@ -70,15 +70,10 @@ export function TriageForm({
     setMessageError(null);
   }
 
-  // FR-24: clear the form after a successful run, so the operator can send the
-  // next message. Quota and manual-review runs keep the text: the operator
+  // FR-24: the form clears after a successful run so the operator can send the
+  // next message. Done by remounting from a `key` in the parent, not with an
+  // effect: quota and manual-review runs keep the text because the operator
   // still needs it to act.
-  React.useEffect(() => {
-    if (result?.status === "success") {
-      setMessage("");
-      setMessageError(null);
-    }
-  }, [result]);
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5">

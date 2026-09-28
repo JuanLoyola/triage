@@ -6,10 +6,7 @@ import { updateSession } from "@/lib/supabase/middleware";
  * function must be named `proxy`.
  */
 export async function proxy(request: NextRequest) {
-  console.log("[proxy] invoked for", request.nextUrl.pathname);
-  const response = await updateSession(request);
-  console.log("[proxy] response status", response.status, response.headers.get("location"));
-  return response;
+  return await updateSession(request);
 }
 
 export const config = {
