@@ -1,0 +1,44 @@
+flowchart LR
+  subgraph browser["Navegador — sin login"]
+    UI["Next.js 16<br/><b>dashboard</b><br/>formulario + audit trail"]
+  end
+
+  subgraph api["Backend — FastAPI"]
+    EP["POST /api/triage<br/>valida largo del mensaje<br/>y max_retries 1-5"]
+    G(("LangGraph<br/>state machine"))
+    EX["<b>extract_ticket</b><br/>llama al LLM<br/>y parsea el JSON"]
+    VA["<b>validate_ticket</b><br/>Pydantic schema<br/>+ regla de negocio"]
+    FI["<b>finalize</b><br/>guarda o descarta"]
+  end
+
+  subgraph ext["Servicios externos"]
+    GEM["Gemini free tier<br/>JSON estricto"]
+    DB[("SQLite :memory:<br/>se pierde al reiniciar")]
+  end
+
+  UI -->|"POST"| EP
+  EP --> G
+  G --> EX
+  G --> VA
+  G --> FI
+
+  EX <-->|"prompt + respuesta"| GEM
+  EX -.->|"error de validación<br/>se reinyecta al prompt"| EX
+
+  VA -->|"falló"| EX
+  EX -->|"parseó bien"| VA
+
+  VA -->|"pasó schema y regla"| FI
+  VA -->|"regla CA 2.3 violada"| EX
+
+  FI -->|"éxito"| DB
+  FI -.->|"agotó reintentos<br/>needs_manual_review"| DB
+
+  EP -.->|"audit trail<br/>intentos + error exacto"| UI
+
+  classDef browserStyle fill:#eff6ff,stroke:#7dd3fc,color:#0c4a6e
+  classDef apiStyle fill:#f0fdf4,stroke:#86efac,color:#14532d
+  classDef extStyle fill:#fffbeb,stroke:#fcd34d,color:#78350f
+  class UI browserStyle
+  class EP,G,EX,VA,FI apiStyle
+  class GEM,DB extStyle
