@@ -97,8 +97,8 @@ export function Dashboard({ email, isAdmin }: Props) {
     <div className="mx-auto max-w-3xl px-4 py-10 sm:py-14">
       <header className="mb-8 flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold text-slate-100">Triage de Tickets</h1>
-          <p className="mt-1.5 text-sm text-slate-400">
+          <h1 className="text-2xl font-semibold text-slate-800">Triage de Tickets</h1>
+          <p className="mt-1.5 text-sm text-slate-600">
             Clasificación automática con bucle de autocorrección y validación estricta.
           </p>
         </div>
@@ -108,7 +108,7 @@ export function Dashboard({ email, isAdmin }: Props) {
           <button
             type="button"
             onClick={handleSignOut}
-            className="text-xs text-slate-400 underline-offset-4 hover:text-slate-200 hover:underline"
+            className="text-xs text-slate-500 underline-offset-4 hover:text-slate-700 hover:underline"
           >
             Salir
           </button>
@@ -116,13 +116,13 @@ export function Dashboard({ email, isAdmin }: Props) {
       </header>
 
       {isAdmin ? (
-        <div className="mb-6 flex items-center gap-3 rounded-lg bg-slate-900/40 px-3 py-2 ring-1 ring-slate-800">
-          <label className="flex cursor-pointer items-center gap-2 text-xs text-slate-400">
+        <div className="mb-6 flex items-center gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2">
+          <label className="flex cursor-pointer items-center gap-2 text-xs text-slate-600">
             <input
               type="checkbox"
               checked={showAll}
               onChange={(event) => setShowAll(event.target.checked)}
-              className="h-3.5 w-3.5 rounded accent-sky-500"
+              className="h-3.5 w-3.5 rounded accent-sky-700"
             />
             mis ejecuciones / todas
           </label>
@@ -132,10 +132,10 @@ export function Dashboard({ email, isAdmin }: Props) {
       {backendDown ? (
         <div
           role="alert"
-          className="mb-6 rounded-lg bg-amber-500/10 p-4 text-sm text-amber-200 ring-1 ring-amber-500/30"
+          className="mb-6 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900"
         >
           <p className="font-medium">El backend no está corriendo</p>
-          <p className="mt-1 text-amber-200/80">
+          <p className="mt-1 text-amber-800">
             El dashboard no puede procesar mensajes hasta que uvicorn esté arriba.{" "}
             <code className="text-xs">cd backend</code> y{" "}
             <code className="text-xs">.\.venv\Scripts\python.exe -m uvicorn app.main:app --port 8000</code>
@@ -144,7 +144,7 @@ export function Dashboard({ email, isAdmin }: Props) {
       ) : null}
 
       <div className="space-y-8">
-        <section className="rounded-xl bg-slate-900/60 p-5 ring-1 ring-slate-800 sm:p-6">
+        <section className="rounded-xl border border-slate-200 bg-white p-5 sm:p-6">
           <TriageForm
             key={formKey}
             isSubmitting={isSubmitting}

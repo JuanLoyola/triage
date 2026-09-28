@@ -59,10 +59,10 @@ function StatusBanner({ result }: { result: RunResult }) {
     return (
       <div
         role="status"
-        className="rounded-lg bg-sky-500/10 p-4 text-sm text-sky-200 ring-1 ring-sky-500/30"
+        className="rounded-lg border border-sky-200 bg-sky-50 p-4 text-sm text-sky-900"
       >
         <p className="font-medium">Cuota del free tier agotada</p>
-        <p className="mt-1 text-sky-200/80">
+        <p className="mt-1 text-sky-800">
           El harness está funcionando correctamente. El proveedor de Gemini no acepta más
           requests hasta que se resetee el límite. Probá de nuevo en unos minutos.
         </p>
@@ -79,10 +79,10 @@ function StatusBanner({ result }: { result: RunResult }) {
     return (
       <div
         role="alert"
-        className="rounded-lg bg-amber-500/10 p-4 text-sm text-amber-200 ring-1 ring-amber-500/30"
+        className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900"
       >
         <p className="font-medium">Se agotaron los reintentos</p>
-        <p className="mt-1 text-amber-200/80">
+        <p className="mt-1 text-amber-800">
           {allProvider
             ? "Todos los intentos fallaron por error del proveedor, no por un error de validación. El ticket no se guardó."
             : "El ticket requiere revisión manual. El log de fallas está en el audit trail y el ticket no se guardó en la base."}
@@ -95,10 +95,10 @@ function StatusBanner({ result }: { result: RunResult }) {
   return (
     <div
       role="status"
-      className="rounded-lg bg-emerald-500/10 p-4 text-sm text-emerald-200 ring-1 ring-emerald-500/30"
+      className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900"
     >
       <p className="font-medium">{title}</p>
-      <p className="mt-1 text-emerald-200/80">{detail}</p>
+      <p className="mt-1 text-emerald-800">{detail}</p>
     </div>
   );
 }
@@ -109,8 +109,8 @@ export function ResultPanel({ result }: { result: RunResult }) {
       <StatusBanner result={result} />
 
       {result.ticket ? (
-        <section className="rounded-lg bg-slate-900/40 p-4 ring-1 ring-slate-800">
-          <h2 className="mb-3 text-sm font-medium text-slate-300">Ticket procesado</h2>
+        <section className="rounded-lg border border-slate-200 bg-white p-4">
+          <h2 className="mb-3 text-sm font-medium text-slate-600">Ticket procesado</h2>
 
           <div className="mb-3 flex flex-wrap items-center gap-2">
             <UrgencyBadge urgency={result.ticket.urgency} />
@@ -120,12 +120,12 @@ export function ResultPanel({ result }: { result: RunResult }) {
             </span>
           </div>
 
-          <p className="text-sm leading-relaxed text-slate-200">{result.ticket.summary}</p>
+          <p className="text-sm leading-relaxed text-slate-800">{result.ticket.summary}</p>
 
           {result.ticket.extracted_amount !== null ? (
-            <p className="mt-3 text-sm text-slate-400">
+            <p className="mt-3 text-sm text-slate-500">
               Monto extraído:{" "}
-              <span className="font-medium tabular-nums text-slate-200">
+              <span className="font-medium tabular-nums text-slate-800">
                 ${result.ticket.extracted_amount.toFixed(2)}
               </span>
             </p>
@@ -138,7 +138,7 @@ export function ResultPanel({ result }: { result: RunResult }) {
       {/* CA 4.3: the strict JSON is always shown, even for failed runs, so the
           evaluator can see what the model actually produced. */}
       <section>
-        <h2 className="mb-2 text-sm font-medium text-slate-300">JSON estricto</h2>
+        <h2 className="mb-2 text-sm font-medium text-slate-600">JSON estricto</h2>
         <JsonBlock data={result.ticket ?? { status: result.status, error: result.error }} />
       </section>
     </div>

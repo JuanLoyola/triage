@@ -12,6 +12,10 @@ export function LoginForm() {
   const [notice, setNotice] = React.useState<string | null>(null);
   const [isLoading, setIsLoading] = React.useState(false);
 
+  const FIELD =
+    "w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 " +
+    "outline-none focus:border-sky-600 focus:ring-2 focus:ring-sky-200";
+
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
     setIsLoading(true);
@@ -55,12 +59,12 @@ export function LoginForm() {
 
   return (
     <div className="mx-auto flex min-h-screen max-w-sm flex-col justify-center px-4">
-      <h1 className="text-xl font-semibold text-slate-100">Triage de Tickets</h1>
-      <p className="mt-1 mb-8 text-sm text-slate-400">Iniciá sesión para continuar.</p>
+      <h1 className="text-xl font-semibold text-slate-800">Triage de Tickets</h1>
+      <p className="mt-1 mb-8 text-sm text-slate-600">Iniciá sesión para continuar.</p>
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label htmlFor="email" className="mb-1.5 block text-sm font-medium text-slate-200">
+          <label htmlFor="email" className="mb-1.5 block text-sm font-medium text-slate-700">
             Email
           </label>
           <input
@@ -70,12 +74,12 @@ export function LoginForm() {
             value={email}
             onChange={(event) => setEmail(event.target.value)}
             required
-            className="w-full rounded-lg bg-slate-950/60 px-3 py-2 text-sm text-slate-100 ring-1 ring-slate-800 outline-none focus:ring-2 focus:ring-sky-500"
+            className={FIELD}
           />
         </div>
 
         <div>
-          <label htmlFor="password" className="mb-1.5 block text-sm font-medium text-slate-200">
+          <label htmlFor="password" className="mb-1.5 block text-sm font-medium text-slate-700">
             Contraseña
           </label>
           <input
@@ -85,17 +89,17 @@ export function LoginForm() {
             value={password}
             onChange={(event) => setPassword(event.target.value)}
             required
-            className="w-full rounded-lg bg-slate-950/60 px-3 py-2 text-sm text-slate-100 ring-1 ring-slate-800 outline-none focus:ring-2 focus:ring-sky-500"
+            className={FIELD}
           />
         </div>
 
         {error ? (
-          <p role="alert" className="text-xs text-red-400">
+          <p role="alert" className="text-xs text-red-600">
             {error}
           </p>
         ) : null}
         {notice ? (
-          <p role="status" className="text-xs text-sky-400">
+          <p role="status" className="text-xs text-sky-700">
             {notice}
           </p>
         ) : null}
@@ -103,7 +107,7 @@ export function LoginForm() {
         <button
           type="submit"
           disabled={isLoading}
-          className="w-full rounded-lg bg-sky-500 px-4 py-2.5 text-sm font-medium text-slate-950 transition hover:bg-sky-400 disabled:opacity-60"
+          className="w-full rounded-lg bg-sky-700 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-sky-800 disabled:opacity-60"
         >
           {isLoading ? "Ingresando..." : "Ingresar"}
         </button>
@@ -111,7 +115,7 @@ export function LoginForm() {
         <button
           type="button"
           onClick={handlePasswordReset}
-          className="w-full text-center text-xs text-slate-500 hover:text-slate-300"
+          className="w-full text-center text-xs text-slate-500 hover:text-slate-700"
         >
           ¿Olvidaste tu contraseña?
         </button>

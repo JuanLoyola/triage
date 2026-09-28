@@ -7,13 +7,14 @@
  */
 import type { ReactNode } from "react";
 
+// Dark enough to stay readable on the light surface, soft enough not to glare.
 const TOKEN_CLASSES = {
-  key: "text-sky-300",
-  string: "text-emerald-300",
-  number: "text-amber-300",
-  boolean: "text-violet-300",
-  null: "text-slate-400",
-  punctuation: "text-slate-500",
+  key: "text-sky-700",
+  string: "text-emerald-700",
+  number: "text-amber-700",
+  boolean: "text-violet-700",
+  null: "text-slate-500",
+  punctuation: "text-slate-400",
 } as const;
 
 type TokenKind = keyof typeof TOKEN_CLASSES;
@@ -94,7 +95,7 @@ export function JsonBlock({ data }: { data: unknown }) {
   }
 
   return (
-    <pre className="overflow-x-auto whitespace-pre-wrap break-words rounded-lg bg-slate-950/80 p-4 text-xs leading-relaxed ring-1 ring-slate-800">
+    <pre className="overflow-x-auto whitespace-pre-wrap break-words rounded-lg border border-slate-200 bg-slate-50 p-4 text-xs leading-relaxed text-slate-700">
       <code>{nodes}</code>
     </pre>
   );

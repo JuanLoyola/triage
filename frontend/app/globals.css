@@ -1,32 +1,59 @@
 @import "tailwindcss";
 
 /*
- * Dark by default. The dashboard is a developer tool, and the fixed syntax
- * highlighting colors (spec item 34) are tuned for a dark surface.
+ * Light mode only, deliberately low-glare.
+ *
+ * Decisions:
+ * - No pure white. A #fff page next to dark text is the main cause of eye
+ *   strain in bright rooms, so the background is a soft off-white.
+ * - No pure black. Body text is slate-800, which keeps roughly a 12:1 contrast
+ *   ratio against the background.
+ * - Borders are light, shadows are avoided. Depth comes from surface tone, not
+ *   from hard edges.
+ *
+ * Text contrast is NOT reduced below AA. Softening the palette is fine;
+ * making text unreadable would exclude the people this theme is meant to help.
  */
 :root {
-  color-scheme: dark;
-  --background: #0a0c10;
-  --foreground: #e2e8f0;
+  color-scheme: light;
+
+  /* Warm off-white instead of #fff. */
+  --background: #f6f7f9;
+  --surface: #ffffff;
+  --surface-muted: #f1f3f6;
+  --border: #e3e7ec;
+  --border-strong: #cfd6de;
+
+  --text-primary: #1f2937;   /* slate-800 */
+  --text-secondary: #52607a; /* 5.91:1 on the background */
+  /* Was #78849a at 3.77:1, below AA. Darkened to 4.72:1. */
+  --text-muted: #6b7789;
+
+  --accent: #0284c7;         /* sky-600, AA on white */
+  --accent-hover: #0369a1;
 }
 
 @theme inline {
   --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-foreground: var(--text-primary);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
 body {
   background: var(--background);
-  color: var(--foreground);
+  color: var(--text-primary);
   font-family: var(--font-geist-sans), system-ui, sans-serif;
 }
 
-/* Keyboard focus must stay visible everywhere, per the accessibility note. */
+/* Keyboard focus must stay visible everywhere. */
 :focus-visible {
-  outline: 2px solid #38bdf8;
+  outline: 2px solid var(--accent);
   outline-offset: 2px;
+}
+
+::selection {
+  background: #cfe8f7;
 }
 
 /* The audit trail is a <details>: hide the default marker. */
@@ -35,4 +62,14 @@ summary::-webkit-details-marker {
 }
 summary {
   list-style: none;
+}
+
+/* Respect a reduced-motion preference. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }

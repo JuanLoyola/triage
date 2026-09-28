@@ -24,6 +24,10 @@ const messageSchema = z
 
 const MAX_RETRIES_OPTIONS = [1, 2, 3, 4, 5] as const;
 
+const FIELD =
+  "w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 " +
+  "outline-none focus:border-sky-600 focus:ring-2 focus:ring-sky-200 disabled:bg-slate-50 disabled:text-slate-500";
+
 interface Props {
   isSubmitting: boolean;
   onSubmit: (message: string, channel: string, maxRetries: number) => void;
@@ -79,12 +83,12 @@ export function TriageForm({
     <form onSubmit={handleSubmit} className="space-y-5">
       <div>
         <div className="mb-2 flex items-baseline justify-between">
-          <label htmlFor="customer-message" className="text-sm font-medium text-slate-200">
+          <label htmlFor="customer-message" className="text-sm font-medium text-slate-700">
             Mensaje del cliente
           </label>
           <span
             className={`text-xs tabular-nums ${
-              messageLength > MAX_MESSAGE_LENGTH ? "text-red-400" : "text-slate-500"
+              messageLength > MAX_MESSAGE_LENGTH ? "text-red-600" : "text-slate-500"
             }`}
           >
             {messageLength} / {MAX_MESSAGE_LENGTH}
@@ -103,22 +107,22 @@ export function TriageForm({
           placeholder="Pegá acá el mensaje que envió el cliente"
           aria-invalid={Boolean(messageError)}
           aria-describedby={messageError ? "message-error" : undefined}
-          className={`w-full resize-y rounded-lg bg-slate-950/60 p-3 text-sm text-slate-100 placeholder-slate-600 ring-1 outline-none focus:ring-2 disabled:opacity-60 ${
+          className={`w-full resize-y rounded-lg border p-3 text-sm leading-relaxed text-slate-800 placeholder-slate-400 outline-none focus:ring-2 disabled:bg-slate-50 ${
             messageError
-              ? "ring-red-500/60 focus:ring-red-500"
-              : "ring-slate-800 focus:ring-sky-500"
+              ? "border-red-400 focus:border-red-500 focus:ring-red-100"
+              : "border-slate-200 focus:border-sky-600 focus:ring-sky-100"
           }`}
         />
 
         {messageError ? (
-          <p id="message-error" role="alert" className="mt-1.5 text-xs text-red-400">
+          <p id="message-error" role="alert" className="mt-1.5 text-xs text-red-600">
             {messageError}
           </p>
         ) : null}
       </div>
 
       <div>
-        <span className="mb-2 block text-sm font-medium text-slate-200">Presets de prueba</span>
+        <span className="mb-2 block text-sm font-medium text-slate-700">Presets de prueba</span>
         <div className="flex flex-wrap gap-2">
           {PRESETS.map((preset) => (
             <button
@@ -126,7 +130,7 @@ export function TriageForm({
               type="button"
               onClick={() => applyPreset(preset.message)}
               disabled={isSubmitting}
-              className="rounded-full bg-slate-800/70 px-3 py-1.5 text-xs text-slate-300 ring-1 ring-slate-700 transition hover:bg-slate-700/70 hover:text-slate-100 disabled:opacity-50"
+              className="rounded-full border border-slate-200 bg-slate-100 px-3 py-1.5 text-xs text-slate-700 transition hover:bg-slate-200 hover:text-slate-800 disabled:opacity-50"
             >
               {preset.label}
             </button>
@@ -136,7 +140,7 @@ export function TriageForm({
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
-          <label htmlFor="channel" className="mb-2 block text-sm font-medium text-slate-200">
+          <label htmlFor="channel" className="mb-2 block text-sm font-medium text-slate-700">
             Canal de origen
           </label>
           <select
@@ -144,7 +148,7 @@ export function TriageForm({
             value={channel}
             onChange={(event) => setChannel(event.target.value)}
             disabled={isSubmitting}
-            className="w-full rounded-lg bg-slate-950/60 px-3 py-2 text-sm text-slate-100 ring-1 ring-slate-800 outline-none focus:ring-2 focus:ring-sky-500 disabled:opacity-60"
+            className={FIELD}
           >
             {CHANNELS.map((option) => (
               <option key={option.value} value={option.value}>
@@ -155,7 +159,7 @@ export function TriageForm({
         </div>
 
         <div>
-          <label htmlFor="max-retries" className="mb-2 block text-sm font-medium text-slate-200">
+          <label htmlFor="max-retries" className="mb-2 block text-sm font-medium text-slate-700">
             Máximo de reintentos
           </label>
           <select
@@ -163,7 +167,7 @@ export function TriageForm({
             value={maxRetries}
             onChange={(event) => setMaxRetries(Number(event.target.value))}
             disabled={isSubmitting}
-            className="w-full rounded-lg bg-slate-950/60 px-3 py-2 text-sm text-slate-100 ring-1 ring-slate-800 outline-none focus:ring-2 focus:ring-sky-500 disabled:opacity-60"
+            className={FIELD}
           >
             {MAX_RETRIES_OPTIONS.map((option) => (
               <option key={option} value={option}>
@@ -177,13 +181,13 @@ export function TriageForm({
       {networkError ? (
         <div
           role="alert"
-          className="flex items-center justify-between gap-3 rounded-lg bg-red-500/10 p-3 text-sm text-red-200 ring-1 ring-red-500/30"
+          className="flex items-center justify-between gap-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-900"
         >
           <span>{networkError}</span>
           <button
             type="button"
             onClick={() => validate() && onSubmit(message.trim(), channel, maxRetries)}
-            className="shrink-0 rounded bg-red-500/20 px-2.5 py-1 text-xs font-medium hover:bg-red-500/30"
+            className="shrink-0 rounded border border-red-300 bg-red-100 px-2.5 py-1 text-xs font-medium text-red-900 hover:bg-red-200"
           >
             Reintentar
           </button>
@@ -194,7 +198,7 @@ export function TriageForm({
         <button
           type="submit"
           disabled={isSubmitting || !isValid}
-          className="rounded-lg bg-sky-500 px-5 py-2.5 text-sm font-medium text-slate-950 transition hover:bg-sky-400 disabled:cursor-not-allowed disabled:bg-slate-800 disabled:text-slate-500"
+          className="rounded-lg bg-sky-700 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-sky-800 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500"
         >
           {isSubmitting ? "Procesando..." : "Enviar"}
         </button>
@@ -203,7 +207,7 @@ export function TriageForm({
           <button
             type="button"
             onClick={onDismissResult}
-            className="text-sm text-slate-400 underline-offset-4 hover:text-slate-200 hover:underline"
+            className="text-sm text-slate-500 underline-offset-4 hover:text-slate-700 hover:underline"
           >
             Limpiar resultado
           </button>
