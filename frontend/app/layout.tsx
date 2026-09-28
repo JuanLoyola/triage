@@ -23,7 +23,15 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="es" className={`${geistSans.variable} ${geistMono.variable}`}>
+    // suppressHydrationWarning: password managers (LastPass, 1Password, ...)
+    // inject attributes such as `data-lt-installed` into <html> before React
+    // hydrates. The server HTML will never match that, and it is not ours to
+    // fix. The warning is scoped to this element only.
+    <html
+      lang="es"
+      suppressHydrationWarning
+      className={`${geistSans.variable} ${geistMono.variable}`}
+    >
       <body className="min-h-screen antialiased">
         <GradientBackground />
         {children}

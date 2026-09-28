@@ -4,6 +4,7 @@
  * An accordion, closed by default (spec item 33). Each failed attempt shows the
  * exact validation error; the successful one shows the total response time.
  */
+import { ChevronDown, History, Timer } from "lucide-react";
 import type { AttemptLog, RunResult } from "@/lib/types";
 
 function formatMs(ms: number | null): string {
@@ -45,18 +46,17 @@ export function AuditTrail({ result }: { result: RunResult }) {
   return (
     <details className="group overflow-hidden rounded-lg border border-slate-200 bg-white/85 backdrop-blur-sm">
       <summary className="flex cursor-pointer items-center justify-between px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50">
-        <span>
+        <span className="flex items-center gap-2">
+          <History aria-hidden="true" className="h-4 w-4 text-slate-400" />
           Audit trail
-          <span className="ml-2 font-normal text-slate-500">
+          <span className="font-normal text-slate-500">
             {attempts.length} {attempts.length === 1 ? "intento" : "intentos"}
           </span>
         </span>
-        <span
-          className="text-slate-400 transition-transform group-open:rotate-180"
+        <ChevronDown
           aria-hidden="true"
-        >
-          ▾
-        </span>
+          className="h-4 w-4 text-slate-400 transition-transform group-open:rotate-180"
+        />
       </summary>
 
       <div className="border-t border-slate-200 px-4 py-4">
@@ -73,7 +73,8 @@ export function AuditTrail({ result }: { result: RunResult }) {
                 />
               ))}
             </ol>
-            <p className="text-xs text-slate-500">
+            <p className="flex items-center gap-1.5 text-xs text-slate-500">
+              <Timer aria-hidden="true" className="h-3.5 w-3.5" />
               Tiempo total de respuesta: {formatMs(result.total_ms)}
             </p>
           </>

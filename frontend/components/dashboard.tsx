@@ -2,6 +2,7 @@
 
 import React from "react";
 import gsap from "gsap";
+import { Boxes, Gauge, ServerCrash } from "lucide-react";
 import { HowItWorks } from "@/components/how-it-works";
 import { ResultPanel } from "@/components/result-panel";
 import { TriageForm } from "@/components/triage-form";
@@ -159,7 +160,10 @@ export function Dashboard() {
   return (
     <div ref={root} className="mx-auto max-w-3xl px-4 py-10 sm:py-14">
       <header className="mb-6" data-animate="section">
-        <h1 className="text-2xl font-semibold text-slate-800">Triage de Tickets</h1>
+        <h1 className="flex items-center gap-2 text-2xl font-semibold text-slate-800">
+          <Boxes aria-hidden="true" className="h-6 w-6 text-sky-700" />
+          Triage de Tickets
+        </h1>
         <p className="mt-1.5 text-sm text-slate-600">
           Clasificación automática con bucle de autocorrección y validación estricta.
         </p>
@@ -178,7 +182,8 @@ export function Dashboard() {
               : "border-slate-200 bg-white/80 text-slate-700 backdrop-blur-sm"
           }`}
         >
-          <p className="font-medium">
+          <p className="flex items-center gap-1.5 font-medium">
+            <Gauge aria-hidden="true" className="h-4 w-4" />
             Te quedan {quota.remaining} de {quota.limit} ejecuciones hoy
           </p>
           <p className="mt-1 text-slate-600">
@@ -201,7 +206,10 @@ export function Dashboard() {
           data-animate="section"
           className="mb-6 rounded-lg border border-amber-200 bg-amber-50/90 p-4 text-sm text-amber-900"
         >
-          <p className="font-medium">El backend no está corriendo</p>
+          <p className="flex items-center gap-1.5 font-medium">
+            <ServerCrash aria-hidden="true" className="h-4 w-4" />
+            El backend no está corriendo
+          </p>
           <p className="mt-1 text-amber-800">
             El dashboard no puede procesar mensajes hasta que uvicorn esté arriba.{" "}
             <code className="text-xs">cd backend</code> y{" "}

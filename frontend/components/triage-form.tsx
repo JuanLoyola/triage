@@ -9,6 +9,14 @@
 import React from "react";
 import { z } from "zod";
 import {
+  Hash,
+  MessageSquareText,
+  Repeat,
+  Send,
+  Sparkles,
+  TriangleAlert,
+} from "lucide-react";
+import {
   CHANNELS,
   MAX_MESSAGE_LENGTH,
   MIN_MESSAGE_LENGTH,
@@ -85,7 +93,8 @@ export function TriageForm({
     <form onSubmit={handleSubmit} className="space-y-5">
       <div>
         <div className="mb-2 flex items-baseline justify-between">
-          <label htmlFor="customer-message" className="text-sm font-medium text-slate-700">
+          <label htmlFor="customer-message" className="flex items-center gap-1.5 text-sm font-medium text-slate-700">
+            <MessageSquareText aria-hidden="true" className="h-4 w-4 text-slate-400" />
             Mensaje del cliente
           </label>
           <span
@@ -124,7 +133,10 @@ export function TriageForm({
       </div>
 
       <div>
-        <span className="mb-2 block text-sm font-medium text-slate-700">Presets de prueba</span>
+        <span className="mb-2 flex items-center gap-1.5 text-sm font-medium text-slate-700">
+          <Sparkles aria-hidden="true" className="h-4 w-4 text-slate-400" />
+          Presets de prueba
+        </span>
         <div className="flex flex-wrap gap-2">
           {PRESETS.map((preset) => (
             <button
@@ -142,7 +154,8 @@ export function TriageForm({
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
-          <label htmlFor="channel" className="mb-2 block text-sm font-medium text-slate-700">
+          <label htmlFor="channel" className="mb-2 flex items-center gap-1.5 text-sm font-medium text-slate-700">
+            <MessageSquareText aria-hidden="true" className="h-4 w-4 text-slate-400" />
             Canal de origen
           </label>
           <select
@@ -161,7 +174,8 @@ export function TriageForm({
         </div>
 
         <div>
-          <label htmlFor="max-retries" className="mb-2 block text-sm font-medium text-slate-700">
+          <label htmlFor="max-retries" className="mb-2 flex items-center gap-1.5 text-sm font-medium text-slate-700">
+            <Repeat aria-hidden="true" className="h-4 w-4 text-slate-400" />
             Máximo de reintentos
           </label>
           <select
@@ -185,12 +199,16 @@ export function TriageForm({
           role="alert"
           className="flex items-center justify-between gap-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-900"
         >
-          <span>{networkError}</span>
+          <span className="flex items-center gap-2">
+            <TriangleAlert aria-hidden="true" className="h-4 w-4 shrink-0" />
+            {networkError}
+          </span>
           <button
             type="button"
             onClick={() => validate() && onSubmit(message.trim(), channel, maxRetries)}
-            className="shrink-0 rounded border border-red-300 bg-red-100 px-2.5 py-1 text-xs font-medium text-red-900 hover:bg-red-200"
+            className="flex shrink-0 items-center gap-1.5 rounded border border-red-300 bg-red-100 px-2.5 py-1 text-xs font-medium text-red-900 hover:bg-red-200"
           >
+            <Repeat aria-hidden="true" className="h-3 w-3" />
             Reintentar
           </button>
         </div>
@@ -200,8 +218,13 @@ export function TriageForm({
         <button
           type="submit"
           disabled={isSubmitting || !isValid || isExhausted}
-          className="rounded-lg bg-sky-700 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-sky-800 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500"
+          className="flex items-center gap-2 rounded-lg bg-sky-700 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-sky-800 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500"
         >
+          {isSubmitting ? (
+            <Hash aria-hidden="true" className="h-4 w-4 animate-pulse" />
+          ) : (
+            <Send aria-hidden="true" className="h-4 w-4" />
+          )}
           {isSubmitting ? "Procesando..." : isExhausted ? "Sin ejecuciones" : "Enviar"}
         </button>
 

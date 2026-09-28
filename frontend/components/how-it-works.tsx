@@ -4,18 +4,23 @@
  * A visitor lands here from a portfolio link with no context, so this has to
  * answer two questions in a few seconds: what is this, and what do I press.
  */
-const STEPS = [
+import { Bot, MessageSquareText, RefreshCw, type LucideIcon } from "lucide-react";
+
+const STEPS: { title: string; body: string; icon: LucideIcon }[] = [
   {
     title: "Pegá el mensaje",
     body: "El texto que te mandó un cliente, tal cual. Si no tenés uno a mano, usá un preset.",
+    icon: MessageSquareText,
   },
   {
     title: "El agente lo clasifica",
     body: "Extrae categoría, urgencia, monto y si necesita escalamiento humano, en un JSON estricto.",
+    icon: Bot,
   },
   {
     title: "Se corrige solo",
     body: "Si la salida no es válida, el agente ve el error exacto y reintenta. Si no lo logra, el ticket queda para revisión manual y no se guarda.",
+    icon: RefreshCw,
   },
 ];
 
@@ -34,17 +39,23 @@ export function HowItWorks() {
       </p>
 
       <ol className="mt-4 grid gap-3 sm:grid-cols-3">
-        {STEPS.map((step, index) => (
-          <li key={step.title} className="rounded-lg bg-slate-50 p-3">
-            <p className="flex items-baseline gap-2 text-sm font-medium text-slate-800">
-              <span className="text-xs font-semibold tabular-nums text-sky-700">
-                {index + 1}.
-              </span>
-              {step.title}
-            </p>
-            <p className="mt-1 text-xs leading-relaxed text-slate-600">{step.body}</p>
-          </li>
-        ))}
+        {STEPS.map((step, index) => {
+          const Icon = step.icon;
+          return (
+            <li key={step.title} className="rounded-lg bg-slate-50/80 p-3">
+              <p className="flex items-center gap-2 text-sm font-medium text-slate-800">
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-sky-100 text-sky-800">
+                  <Icon aria-hidden="true" className="h-3.5 w-3.5" strokeWidth={2.25} />
+                </span>
+                <span className="text-xs font-semibold tabular-nums text-slate-400">
+                  {index + 1}.
+                </span>
+                {step.title}
+              </p>
+              <p className="mt-1.5 text-xs leading-relaxed text-slate-600">{step.body}</p>
+            </li>
+          );
+        })}
       </ol>
     </section>
   );
