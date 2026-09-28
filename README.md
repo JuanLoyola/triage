@@ -1,14 +1,18 @@
 # Triage de Tickets
 
-Un mensaje crudo de un cliente entra por un formulario. Un agente LLM lo clasifica
+> ### Un agente LLM que convierte mensajes crudos de clientes en tickets estructurados, y un harness que garantiza que nada inválido llegue a la base: schema estricto, error reinyectado al prompt, reintentos acotados, y estado de revisión manual cuando no se puede arreglar.
+
+El valor del proyecto está en la segunda mitad de esa frase. La clasificación es una
+llamada a una API; el harness es el producto.
+
+Un mensaje crudo de un cliente entra por un formulario. El agente lo clasifica
 (categoría, urgencia) y extrae datos estructurados en JSON estricto. La salida se valida
 contra un esquema: si falla, el agente recibe el error exacto y se corrige solo, hasta un
 límite de reintentos. Cuando se agotan, el ticket queda marcado para revisión manual y
 **no se guarda nada**.
 
-Lo interesante del proyecto no es la clasificación: es el harness alrededor. Todo el
-esfuerzo está en garantizar que un ticket inválido nunca llegue a la base, y en hacer el
-proceso visible para poder auditarlo.
+Todo el esfuerzo está en garantizar que un ticket inválido nunca llegue a la base, y en
+hacer el proceso visible para poder auditarlo.
 
 ---
 
