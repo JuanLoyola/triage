@@ -40,6 +40,16 @@ CREATE TABLE IF NOT EXISTS attempt_logs (
     error      TEXT,
     FOREIGN KEY (ticket_id) REFERENCES tickets (id)
 );
+
+-- Every authenticated execution, counted against the daily cap.
+CREATE TABLE IF NOT EXISTS runs (
+    id      INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id TEXT NOT NULL,
+    run_at  TEXT NOT NULL DEFAULT (datetime('now')),
+    status  TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_runs_user_time ON runs (user_id, run_at);
 """
 
 

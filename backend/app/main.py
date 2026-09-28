@@ -11,14 +11,15 @@ import os
 from contextlib import asynccontextmanager
 from typing import Annotated, Any
 
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import Depends, FastAPI, Header, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import ValidationError
 
 # Must come before anything reads configuration.
 from .env import load_env  # noqa: F401  (import side effect: loads .env)
 
-from . import db
+from . import db, ratelimit
+from .auth import resolve_user_id
 from .graph import run_triage
 from .llm import LLMProvider, get_provider
 from .models import ChatRequest, ExtractionState, RunResult
@@ -62,14 +63,49 @@ async def health() -> dict[str, Any]:
     return {"status": "ok", "tickets": db.count(), "mock_llm": os.getenv("MOCK_LLM", "false")}
 
 
+@app.get("/api/quota")
+async def quota(authorization: Annotated[str | None, Header()] = None) -> dict[str, Any]:
+    """How many executions the caller has left today.
+
+    The dashboard shows this so visitors understand the cap instead of hitting
+    it blind.
+    """
+    user_id = await resolve_user_id(authorization)
+    used = ratelimit.used_today(user_id)
+    return {
+        "limit": ratelimit.DAILY_LIMIT,
+        "used": used,
+        "remaining": max(ratelimit.DAILY_LIMIT - used, 0),
+    }
+
+
 @app.post("/api/triage", response_model=RunResult)
-async def triage(request: ChatRequest, llm: LLM) -> RunResult:
+async def triage(
+    request: ChatRequest,
+    llm: LLM,
+    authorization: Annotated[str | None, Header()] = None,
+) -> RunResult:
     """Run one triage execution with the self-correcting loop (CA 3.2, 3.3).
 
-    Always answers 200. A run that ends in `quota_exceeded` is not a harness
-    failure, so the dashboard renders it as an informational state rather than
-    an error. Only malformed requests are rejected with 4xx.
+    Requires a valid Supabase session and counts against the caller's daily cap.
+    Always answers 200 for a run that reached the agent, including
+    `quota_exceeded`: that is provider exhaustion, not a harness failure.
     """
+    user_id = await resolve_user_id(authorization)
+
+    try:
+        # One row per execution. The outcome is stamped on later.
+        ratelimit.consume(user_id)
+    except ratelimit.RateLimitError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=(
+                f"Alcanzaste el límite de {exc.limit} ejecuciones por día. "
+                "Se reinicia a medianoche. Cada ejecución consume cuota del "
+                "free tier de Gemini, que es compartida."
+            ),
+        ) from exc
+
     try:
         state = await run_triage(
             provider=llm,
@@ -80,18 +116,21 @@ async def triage(request: ChatRequest, llm: LLM) -> RunResult:
     except ValidationError as exc:
         raise HTTPException(status_code=422, detail=exc.errors()) from exc
 
-    status = state["status"]
+    run_status = state["status"]
+    ratelimit.mark_finished(user_id, run_status.value)
+
     return RunResult(
-        status=status,
+        status=run_status,
         attempts=state.get("attempts", []),
         ticket=state.get("ticket"),
         customer_message=request.customer_message,
         channel=request.channel,
         max_retries=request.max_retries,
-        needs_manual_review=status is ExtractionState.NEEDS_MANUAL_REVIEW,
-        quota_exceeded=status is ExtractionState.QUOTA_EXCEEDED,
+        needs_manual_review=run_status is ExtractionState.NEEDS_MANUAL_REVIEW,
+        quota_exceeded=run_status is ExtractionState.QUOTA_EXCEEDED,
         error=state.get("error"),
         total_ms=state.get("total_ms"),
+        runs_remaining=ratelimit.remaining_today(user_id),
     )
 
 

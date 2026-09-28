@@ -127,6 +127,8 @@ class RunResult(BaseModel):
     quota_exceeded: bool = False
     error: str | None = None
     total_ms: int | None = None
+    # How many daily executions the caller has left after this one.
+    runs_remaining: int | None = None
 
 
 class ChatRequest(BaseModel):

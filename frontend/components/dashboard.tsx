@@ -4,48 +4,71 @@ import React from "react";
 import { useRouter } from "next/navigation";
 import { ResultPanel } from "@/components/result-panel";
 import { TriageForm } from "@/components/triage-form";
+import { createClient } from "@/lib/supabase/client";
 import type { RunResult } from "@/lib/types";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000";
 
 interface Props {
   email: string | null;
-  isAdmin: boolean;
 }
 
-export function Dashboard({ email, isAdmin }: Props) {
+/** GET /api/quota needs the caller's session token. */
+async function authHeaders(): Promise<Record<string, string>> {
+  const supabase = createClient();
+  const { data } = await supabase.auth.getSession();
+  const token = data.session?.access_token;
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+interface Quota {
+  limit: number;
+  used: number;
+  remaining: number;
+}
+
+export function Dashboard({ email }: Props) {
+  const router = useRouter();
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [result, setResult] = React.useState<RunResult | null>(null);
   const [networkError, setNetworkError] = React.useState<string | null>(null);
-  const [showAll, setShowAll] = React.useState(false);
-
   const [backendDown, setBackendDown] = React.useState(false);
   // Bumped after a successful run to remount TriageForm with clean state.
   const [formKey, setFormKey] = React.useState(0);
-  const router = useRouter();
+  const [quota, setQuota] = React.useState<Quota | null>(null);
 
-  // Surface a dead backend up front instead of letting the operator fill in the
-  // form and only then fail.
+  const loadQuota = React.useCallback(async () => {
+    try {
+      const response = await fetch(`${API_URL}/api/quota`, {
+        headers: await authHeaders(),
+      });
+      if (response.ok) setQuota((await response.json()) as Quota);
+    } catch {
+      // The banner below already reports a dead backend.
+    }
+  }, []);
+
+  // Surface a dead backend up front, and read the daily allowance on mount.
   React.useEffect(() => {
     let cancelled = false;
 
-    async function checkBackend() {
+    async function boot() {
       try {
         const response = await fetch(`${API_URL}/health`);
         if (!cancelled) setBackendDown(!response.ok);
       } catch {
         if (!cancelled) setBackendDown(true);
       }
+      void loadQuota();
     }
 
-    void checkBackend();
+    void boot();
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [loadQuota]);
 
   async function handleSignOut() {
-    const { createClient } = await import("@/lib/supabase/client");
     await createClient().auth.signOut();
     router.push("/login");
     router.refresh();
@@ -58,7 +81,7 @@ export function Dashboard({ email, isAdmin }: Props) {
     try {
       const response = await fetch(`${API_URL}/api/triage`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...(await authHeaders()) },
         body: JSON.stringify({
           customer_message: message,
           channel,
@@ -67,23 +90,30 @@ export function Dashboard({ email, isAdmin }: Props) {
       });
 
       if (!response.ok) {
-        // Distinguish the causes instead of collapsing them into one message.
         const detail = await response.json().catch(() => null);
-        const message =
-          typeof detail?.detail === "string"
-            ? detail.detail
-            : `El backend respondió ${response.status} ${response.statusText}.`;
-        setNetworkError(message);
+        const raw =
+          typeof detail?.detail === "string" ? detail.detail : response.statusText;
+
+        // 429 is the daily cap, which the quota banner already explains.
+        if (response.status === 429) {
+          setNetworkError(raw);
+          void loadQuota();
+          return;
+        }
+
+        setNetworkError(`El backend respondió ${response.status}: ${raw}`);
         return;
       }
 
       const data = (await response.json()) as RunResult;
       setResult(data);
+      if (data.runs_remaining !== null && quota) {
+        setQuota({ ...quota, remaining: data.runs_remaining, used: quota.used + 1 });
+      }
 
       // FR-24: remount the form to clear it, only on a successful run.
       if (data.status === "success") setFormKey((key) => key + 1);
     } catch (error) {
-      // E-1: the backend is unreachable. Name the URL so the cause is obvious.
       setNetworkError(
         `No pudimos conectar con el backend en ${API_URL}. ` +
           `¿Está corriendo uvicorn? (${error instanceof Error ? error.message : "error desconocido"})`,
@@ -93,9 +123,11 @@ export function Dashboard({ email, isAdmin }: Props) {
     }
   }
 
+  const exhausted = quota !== null && quota.remaining <= 0;
+
   return (
     <div className="mx-auto max-w-3xl px-4 py-10 sm:py-14">
-      <header className="mb-8 flex items-start justify-between gap-4">
+      <header className="mb-6 flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold text-slate-800">Triage de Tickets</h1>
           <p className="mt-1.5 text-sm text-slate-600">
@@ -115,17 +147,22 @@ export function Dashboard({ email, isAdmin }: Props) {
         </div>
       </header>
 
-      {isAdmin ? (
-        <div className="mb-6 flex items-center gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2">
-          <label className="flex cursor-pointer items-center gap-2 text-xs text-slate-600">
-            <input
-              type="checkbox"
-              checked={showAll}
-              onChange={(event) => setShowAll(event.target.checked)}
-              className="h-3.5 w-3.5 rounded accent-sky-700"
-            />
-            mis ejecuciones / todas
-          </label>
+      {quota ? (
+        <div
+          className={`mb-6 rounded-lg border p-4 text-sm ${
+            exhausted
+              ? "border-amber-200 bg-amber-50 text-amber-900"
+              : "border-slate-200 bg-white text-slate-700"
+          }`}
+        >
+          <p className="font-medium">
+            Te quedan {quota.remaining} de {quota.limit} ejecuciones hoy
+          </p>
+          <p className="mt-1 text-slate-600">
+            {exhausted
+              ? "Se reinician a medianoche. Cada ejecución consume cuota del free tier de Gemini, que es compartida entre todos los usuarios."
+              : "Cada ejecución consume cuota del free tier de Gemini, que es compartida. Si sólo querés ver cómo funciona, usá un preset. Si querés ver la autocorrección, escribí tu propio mensaje: es más probable que el modelo se equivoque."}
+          </p>
         </div>
       ) : null}
 
@@ -152,6 +189,7 @@ export function Dashboard({ email, isAdmin }: Props) {
             onDismissResult={() => setResult(null)}
             result={result}
             networkError={networkError}
+            isExhausted={exhausted}
           />
         </section>
 

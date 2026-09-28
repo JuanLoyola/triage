@@ -1,43 +1,24 @@
 -- Schema for the triage dashboard.
 --
--- Run this in the Supabase SQL editor. It only covers auth-adjacent state:
--- tickets live in SQLite in memory on the Python backend (spec section 11.1).
+-- Run this in the Supabase SQL editor.
 --
--- The backend is NOT in the database trust chain, so it never writes here.
+-- Tickets do NOT live here: they live in SQLite in memory on the Python
+-- backend (spec section 11.1). This file only covers auth-adjacent state.
+--
+-- IMPORTANT: a `profiles` table already exists in this project with columns
+-- (id, email, name, default_currency, created_at, updated_at). Everything here
+-- adapts to it instead of replacing it. `email` and `name` are NOT NULL, which
+-- is why the old trigger broke user creation: it inserted only `id`.
 
 -- ---------------------------------------------------------------------------
--- 1. Tabla de perfiles (R-14: el flag de admin vive acá y se edita a mano)
--- ---------------------------------------------------------------------------
-
-create table if not exists public.profiles (
-  id         uuid primary key references auth.users (id) on delete cascade,
-  is_admin   boolean not null default false,
-  created_at timestamptz not null default now()
-);
-
-alter table public.profiles enable row level security;
-
--- Un usuario solo puede leer su propio perfil. El dashboard únicamente
--- necesita saber si el usuario logueado es admin; nunca lista perfiles.
-drop policy if exists "read own profile" on public.profiles;
-create policy "read own profile"
-  on public.profiles
-  for select
-  using (auth.uid() = id);
-
--- Nota: deliberadamente NO hay policy de INSERT/UPDATE. El perfil se crea a
--- mano y la promoción de admin se hace a mano. Así la tabla queda effectively
--- read-only desde el cliente, que es lo que queremos para un MVP.
-
--- ---------------------------------------------------------------------------
--- 2. Trigger de auto-creación de perfil
+-- 1. Trigger de auto-creación de perfil
 -- ---------------------------------------------------------------------------
 --
--- Opcional. Antes de agregarlo, borrá el que pueda haber quedado de una
--- ejecución previa: un trigger roto hace fallar el alta de usuarios con
--- "Database error creating new user".
+-- Now genuinely required: with Google sign-in, users are created by Supabase,
+-- not by hand, so the profile row has to appear on its own.
 --
--- Para un MVP podés saltearlo. El flujo manual está en la sección 3.
+-- The drop is not optional. A stale or broken trigger makes every signup fail
+-- with "Database error creating new user".
 
 drop trigger if exists on_auth_user_created on auth.users;
 
@@ -45,43 +26,62 @@ create or replace function public.handle_new_user()
 returns trigger
 language plpgsql
 security definer
-set search_path = public, auth
+set search_path = public
 as $$
 begin
-  insert into public.profiles (id)
-  values (new.id)
+  insert into public.profiles (id, email, name)
+  values (
+    new.id,
+    coalesce(new.email, ''),
+    -- Google supplies full_name; fall back to the local part of the email.
+    coalesce(
+      new.raw_user_meta_data ->> 'full_name',
+      new.raw_user_meta_data ->> 'name',
+      split_part(coalesce(new.email, 'usuario'), '@', 1)
+    )
+  )
   on conflict (id) do nothing;
   return new;
 exception
   when others then
-    -- Nunca bloquear el alta de un usuario por un detalle del perfil.
-    -- El perfil se puede crear a mano después.
-    raise warning 'handle_new_user: %', sqlerrm;
+    -- A profile problem must never block a signup.
+    raise warning 'handle_new_user failed: %', sqlerrm;
     return new;
 end;
 $$;
 
--- Activá el trigger solo si necesitás que el perfil nazca solo.
--- create trigger on_auth_user_created
---   after insert on auth.users
---   for each row
---   execute function public.handle_new_user();
+create trigger on_auth_user_created
+  after insert on auth.users
+  for each row
+  execute function public.handle_new_user();
 
 -- ---------------------------------------------------------------------------
--- 3. Flujo manual (recomendado para el MVP)
+-- 2. Backfill de perfiles que ya existen
+-- ---------------------------------------------------------------------------
+
+insert into public.profiles (id, email, name)
+select
+  u.id,
+  coalesce(u.email, ''),
+  coalesce(
+    u.raw_user_meta_data ->> 'full_name',
+    split_part(coalesce(u.email, 'usuario'), '@', 1)
+  )
+from auth.users u
+on conflict (id) do nothing;
+
+-- ---------------------------------------------------------------------------
+-- 3. Permisos
 -- ---------------------------------------------------------------------------
 --
--- 1. Creás el usuario en Authentication > Users > Add user.
--- 2. Corrés esto para crear su perfil:
---
---   insert into public.profiles (id)
---   select id from auth.users where email = 'tu@email.com'
---   on conflict (id) do nothing;
---
--- 3. Si querés que sea admin:
---
---   update public.profiles
---      set is_admin = true
---    where id = (select id from auth.users where email = 'tu@email.com');
+-- The dashboard does not read `profiles` at all any more: roles were removed,
+-- so there is nothing to check client side. These policies exist only so the
+-- table is not wide open if someone queries it.
 
--- Para promover o degradar a alguien más adelante, repetí el update.
+alter table public.profiles enable row level security;
+
+drop policy if exists "read own profile" on public.profiles;
+create policy "read own profile"
+  on public.profiles
+  for select
+  using (auth.uid() = id);

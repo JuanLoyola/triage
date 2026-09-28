@@ -34,6 +34,7 @@ interface Props {
   onDismissResult: () => void;
   result: RunResult | null;
   networkError: string | null;
+  isExhausted: boolean;
 }
 
 export function TriageForm({
@@ -42,6 +43,7 @@ export function TriageForm({
   onDismissResult,
   result,
   networkError,
+  isExhausted,
 }: Props) {
   const [message, setMessage] = React.useState("");
   const [channel, setChannel] = React.useState<string>(CHANNELS[0].value);
@@ -64,7 +66,7 @@ export function TriageForm({
 
   function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
-    if (isSubmitting) return;
+    if (isSubmitting || isExhausted) return;
     if (!validate()) return;
     onSubmit(message.trim(), channel, maxRetries);
   }
@@ -197,10 +199,10 @@ export function TriageForm({
       <div className="flex items-center gap-3">
         <button
           type="submit"
-          disabled={isSubmitting || !isValid}
+          disabled={isSubmitting || !isValid || isExhausted}
           className="rounded-lg bg-sky-700 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-sky-800 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500"
         >
-          {isSubmitting ? "Procesando..." : "Enviar"}
+          {isSubmitting ? "Procesando..." : isExhausted ? "Sin ejecuciones" : "Enviar"}
         </button>
 
         {result && !isSubmitting ? (

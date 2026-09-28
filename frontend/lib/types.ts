@@ -50,6 +50,7 @@ export interface RunResult {
   quota_exceeded: boolean;
   error: string | null;
   total_ms: number | null;
+  runs_remaining: number | null;
 }
 
 export const PRESETS: { label: string; message: string }[] = [
